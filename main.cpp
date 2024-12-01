@@ -2,6 +2,8 @@
 #include "include/p.h"
 #include <cstdlib>
 
+bool place_order_flag = false;
+
 void load_env(const std::string &file) {
   std::ifstream envFile(file);
   if (!envFile.is_open()) {
@@ -26,7 +28,7 @@ void load_env(const std::string &file) {
     key.erase(key.find_last_not_of(" \t\r\n") + 1);
     value.erase(value.find_last_not_of(" \t\r\n") + 1);
 
-    setenv(key.c_str(), value.c_str(), 1); // Use _putenv on Windows
+    setenv(key.c_str(), value.c_str(), 1);
   }
 }
 
@@ -40,12 +42,7 @@ int main(int argc, char **argv) {
 
   CLI::App app("Welcome to order system and execution manager");
 
-  // Test
-  int p = 0;
-  app.add_option("-p", p, "Outputs the value of p");
-  app.callback([&]() { p_value(p); });
-
-  // app.add_option("-place", )
+  app.add_flag("-place", place_order_flag, "Places the required order");
 
   CLI11_PARSE(app, argc, argv);
 }
