@@ -1,4 +1,4 @@
-#include "CLI11.hpp"
+#include "./include/CLI11.hpp"
 #include <iostream>
 
 int main(int argc, char **argv) {
