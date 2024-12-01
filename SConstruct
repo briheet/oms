@@ -1,1 +1,1 @@
-Program("main.cpp")
+Program("main", ["main.cpp", "src/p.cpp"])
