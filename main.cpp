@@ -1,5 +1,7 @@
 #include "./include/CLI11.hpp"
-#include "include/p.h"
+// #include "include/ordermanager.h"
+// #include "include/p.h"
+#include "./include/token.h"
 #include <cstdlib>
 
 bool place_order_flag = false;
@@ -36,13 +38,20 @@ int main(int argc, char **argv) {
   load_env(".env");
 
   const char *client_id = std::getenv("CLIENT_ID");
-  const char *client_secret = getenv("CLIENT_SECRET");
+  const char *client_secret = std::getenv("CLIENT_SECRET");
 
-  std::cout << client_id << " " << client_secret << std::endl;
-
+  // std::cout << client_id << " " << client_secret << std::endl;
   CLI::App app("Welcome to order system and execution manager");
 
-  app.add_flag("-place", place_order_flag, "Places the required order");
+  app.add_flag("--place", place_order_flag, "Places the required order");
 
   CLI11_PARSE(app, argc, argv);
+
+  if (place_order_flag) {
+    TokenManager tokenmanager;
+    Response response = tokenmanager.getToken();
+    std::cout << response.result.token_type << std::endl;
+  }
+
+  return 0;
 }
