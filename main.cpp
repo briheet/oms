@@ -2,6 +2,7 @@
 #include "./include/ordermanager.h"
 #include "./include/token.h"
 #include <cstdlib>
+#include <ostream>
 #include <string>
 
 void load_env(const std::string &file) {
@@ -40,22 +41,31 @@ int main(int argc, char **argv) {
 
   CLI::App app("Welcome to order system and execution manager");
 
-  std::string instrument_name;
-  double amount = 0.0;
-  std::string order_type = "market";
+  // Place Order
+  std::string place_instrument_name;
+  double place_amount = 0.0;
+  std::string place_order_type = "market";
   auto place_cmd = app.add_subcommand("place", "Place an order");
   place_cmd
-      ->add_option("--instrument", instrument_name,
+      ->add_option("--instrument", place_instrument_name,
                    "Instrument name (e.g., ETH-PERPETUAL)")
       ->required();
-  place_cmd->add_option("--amount", amount, "Order amount")->required();
-  place_cmd->add_option("--type", order_type, "Order type (market, limit)")
+  place_cmd->add_option("--amount", place_amount, "Order amount")->required();
+  place_cmd
+      ->add_option("--type", place_order_type, "Order type (market, limit)")
+      ->required();
+
+  // Cancel Order
+  std::string cancel_order_id = "";
+  auto cancel_cmd = app.add_subcommand("cancel", "Cancels an order");
+  cancel_cmd->add_option("--order_id", cancel_order_id, "Placed Order Id")
       ->required();
 
   CLI11_PARSE(app, argc, argv);
 
   if (place_cmd->parsed()) {
-    if (instrument_name.empty() || amount <= 0.0 || order_type.empty()) {
+    if (place_instrument_name.empty() || place_amount <= 0.0 ||
+        place_order_type.empty()) {
       std::cerr << "Error: Instrument name and amount and valid market are "
                    "required to place an order."
                 << std::endl;
@@ -66,9 +76,9 @@ int main(int argc, char **argv) {
     Response response = tokenmanager.getToken();
 
     OrderRequest newOrder;
-    newOrder.Instrument = instrument_name;
-    newOrder.Amount = amount;
-    newOrder.Order_type = order_type;
+    newOrder.Instrument = place_instrument_name;
+    newOrder.Amount = place_amount;
+    newOrder.Order_type = place_order_type;
     newOrder.Bearer = response.result.access_token;
 
     Order orderManager;
@@ -78,6 +88,29 @@ int main(int argc, char **argv) {
       return 1;
     } else {
       std::cout << "Order placed successfully!" << std::endl;
+    }
+
+  } else if (cancel_cmd->parsed()) {
+
+    if (cancel_order_id.empty()) {
+      std::cerr << "Error: Not a valid order_id" << std::endl;
+      throw std::runtime_error("Please enter a valid order_id");
+    }
+
+    TokenManager tokerManager;
+    Response response = tokerManager.getToken();
+
+    CancelRequest cancelOrder;
+    cancelOrder.Bearer = response.result.access_token;
+    cancelOrder.Order_Id = cancel_order_id;
+
+    Order orderManager;
+    int ok = orderManager.cancel_order(cancelOrder);
+    if (ok != 0) {
+      std::cerr << "Error: Failed to cancel order!" << std::endl;
+      return 1;
+    } else {
+      std::cout << "Order cancel successfully!" << std::endl;
     }
   }
 
