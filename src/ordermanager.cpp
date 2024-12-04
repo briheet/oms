@@ -2,6 +2,7 @@
 #include "../include/json.hpp"
 #include <curl/curl.h>
 #include <curl/easy.h>
+#include <curl/header.h>
 #include <stdexcept>
 using json = nlohmann::json;
 
@@ -99,13 +100,14 @@ int Order::cancel_order(const CancelRequest &request) {
 
 int Order::isCancelable(const CancelRequest &request) {
 
-  std::string url = "https://test.deribit.com/api/v2/private/get_order_state?";
-  url += "order_id=" + request.Order_Id;
-
   CURL *curl;
   CURLcode res;
 
   curl = curl_easy_init();
+
+  std::string url = "https://test.deribit.com/api/v2/private/get_order_state?";
+  url += "order_id=" + request.Order_Id;
+
   std::string responseData = "";
 
   if (curl) {
@@ -130,11 +132,13 @@ int Order::isCancelable(const CancelRequest &request) {
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
+  } else {
+
+    throw std::runtime_error("Failed to initialize CURL");
   }
 
   std::string time_in_force = "";
 
-  // std::cout << "responseData " << responseData << std::endl;
   try {
 
     auto jsonResponse = json::parse(responseData);
@@ -161,6 +165,131 @@ int Order::isCancelable(const CancelRequest &request) {
   if (time_in_force != "good_til_cancelled") {
     throw std::runtime_error(
         "The order is not of the type good_till_cancelled");
+    return 1;
+  }
+
+  return 0;
+}
+
+int Order::modify_order(const ModifyRequest &request) {
+
+  // Check if it can be modified or not by checking the order_state in
+  // /private/get_order_state. If can be modified, please modify it then
+
+  int validCheck = isModifyAble(request);
+  if (validCheck != 0) {
+    throw std::runtime_error("The order is not modifyable");
+    return 1;
+  }
+
+  CURL *curl;
+  CURLcode res;
+
+  curl = curl_easy_init();
+
+  std::string url = "https://test.deribit.com/api/v2/private/edit?";
+  url += "amount=" + std::to_string(request.Amount);
+  url += "&order_id=" + request.Order_Id;
+
+  if (curl) {
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1l);
+
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(
+        headers, ("Authorization: Bearer " + request.Bearer).c_str());
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+    res = curl_easy_perform(curl);
+
+    if (res != CURLE_OK) {
+      std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res)
+                << std::endl;
+      throw std::runtime_error("CURL request failed");
+    }
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+
+  } else {
+    throw std::runtime_error("Failed to initialize CURL");
+  }
+
+  return 0;
+}
+
+int Order::isModifyAble(const ModifyRequest &request) {
+
+  CURL *curl;
+  CURLcode res;
+
+  curl = curl_easy_init();
+
+  std::string url = "https://test.deribit.com/api/v2/private/get_order_state?";
+  url += "order_id=" + request.Order_Id;
+
+  std::string responseData = "";
+
+  if (curl) {
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1l);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
+
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(
+        headers, ("Authorization: Bearer " + request.Bearer).c_str());
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+    res = curl_easy_perform(curl);
+
+    if (res != CURLE_OK) {
+      std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res)
+                << std::endl;
+      throw std::runtime_error("CURL request failed");
+    }
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+
+  } else {
+    throw std::runtime_error("Failed to initialize CURL");
+  }
+
+  std::string order_state = "";
+
+  try {
+
+    auto jsonResponse = json::parse(responseData);
+
+    if (jsonResponse.contains("result") && !jsonResponse["result"].is_null()) {
+
+      auto result = jsonResponse["result"];
+      order_state =
+          result.contains("order_state") && !result["order_state"].is_null()
+              ? result["order_state"].get<std::string>()
+              : "";
+    } else {
+
+      throw std::runtime_error(
+
+          "jsonResponse does not contain order_state parameter");
+      return 1;
+    }
+
+  } catch (json::exception &e) {
+
+    std::cerr << "JSON parsing error: " << e.what() << std::endl;
+    throw std::runtime_error("Failed to parse JSON response");
+  }
+
+  if (order_state != "open") {
+
+    throw std::runtime_error("The order is not open for modifying");
     return 1;
   }
 

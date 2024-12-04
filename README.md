@@ -10,4 +10,5 @@ Current Limits:
 Informal command workings for now:
 
 - place - `./main place --instrument BNB_USDC --amount 1 --type market`
-- cancel - `./main cancel --order_id <place_your_order_id_here>`
+- cancel - `./main cancel --order_id <place_your_order_id_herey>`
+- modify - `./main modify --amount 5 --order_id <place_your_order_id_herey>`

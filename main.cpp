@@ -34,6 +34,7 @@ void load_env(const std::string &file) {
 }
 
 int main(int argc, char **argv) {
+  auto start = std::chrono::high_resolution_clock::now();
   load_env(".env");
 
   const char *client_id = std::getenv("CLIENT_ID");
@@ -59,6 +60,19 @@ int main(int argc, char **argv) {
   std::string cancel_order_id = "";
   auto cancel_cmd = app.add_subcommand("cancel", "Cancels an order");
   cancel_cmd->add_option("--order_id", cancel_order_id, "Placed Order Id")
+      ->required();
+
+  // Modify or Edit Order
+  double modify_amount = 0;
+  std::string modify_orderId = "";
+  auto modify_cmd = app.add_subcommand("modify", "Modifies an existing order");
+  modify_cmd
+      ->add_option("--amount", modify_amount,
+                   "The amount that the user wants to work on")
+      ->required();
+  modify_cmd
+      ->add_option("--order_id", modify_orderId,
+                   "Order ID that you want to change")
       ->required();
 
   CLI11_PARSE(app, argc, argv);
@@ -112,7 +126,35 @@ int main(int argc, char **argv) {
     } else {
       std::cout << "Order cancel successfully!" << std::endl;
     }
+  } else if (modify_cmd->parsed()) {
+
+    if (modify_amount <= 0.0 || modify_orderId.empty()) {
+      std::cerr << "Error: Not a valid amount or orderId" << std::endl;
+      throw std::runtime_error("Please enter valid credentials");
+    }
+
+    TokenManager tokenManager;
+    Response response = tokenManager.getToken();
+
+    ModifyRequest modifyRequest;
+    modifyRequest.Bearer = response.result.access_token;
+    modifyRequest.Amount = modify_amount;
+    modifyRequest.Order_Id = modify_orderId;
+
+    Order orderManager;
+    int ok = orderManager.modify_order(modifyRequest);
+
+    if (ok != 0) {
+      std::cerr << "Error: Failed to modify order!" << std::endl;
+      return 1;
+    } else {
+      std::cout << "Order modify successfully!" << std::endl;
+    }
   }
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> elapsed = end - start;
+
+  std::cout << "Execution time: " << elapsed.count() << " seconds" << std::endl;
 
   return 0;
 }
