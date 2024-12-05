@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <ostream>
+#include <stdexcept>
 #include <string>
 
 void load_env(const std::string &file) {
@@ -86,9 +87,23 @@ int main(int argc, char **argv) {
       ->add_option("--instrument_name", orderBook_instrument_name,
                    "Takes in the instrument name for the order book")
       ->required();
-  orderBook_cmd->add_option("--depth", orderBook_depth,
-                            "Takes in the depth for the number of entries to "
-                            "return for bids and asks.");
+  orderBook_cmd
+      ->add_option("--depth", orderBook_depth,
+                   "Takes in the depth for the number of entries to "
+                   "return for bids and asks.")
+      ->required();
+
+  // View current positions
+  std::string view_current_pos_currency = "";
+  std::string view_current_pos_kind = "";
+  auto view_current_pos_cmd = app.add_subcommand(
+      "current_pos", "Gets the current positions by currency and kind");
+  view_current_pos_cmd
+      ->add_option("--curr", view_current_pos_currency, "Needs currency name")
+      ->required();
+  view_current_pos_cmd
+      ->add_option("--kind", view_current_pos_kind, "Needs kind")
+      ->required();
 
   CLI11_PARSE(app, argc, argv);
 
@@ -191,6 +206,37 @@ int main(int argc, char **argv) {
       return 1;
     } else {
       std::cout << "Got the order book successfully" << std::endl;
+    }
+  } else if (view_current_pos_cmd->parsed()) {
+
+    if (view_current_pos_currency.empty()) {
+      std::cerr << "Currency is empty" << std::endl;
+      throw std::runtime_error("Please entry currency");
+      return 1;
+    }
+
+    if (view_current_pos_kind.empty()) {
+      std::cerr << "Kind is empty" << std::endl;
+      throw std::runtime_error("Please enter a valid kind");
+      return 1;
+    }
+
+    TokenManager tokenManager;
+    Response response = tokenManager.getToken();
+
+    ViewCurrentPositions request;
+    request.Bearer = response.result.access_token;
+    request.Kind = view_current_pos_kind;
+    request.Currency = view_current_pos_currency;
+
+    Order orderManager;
+    int ok = orderManager.viewCurrentOrderPositions(request);
+
+    if (ok != 0) {
+      std::cerr << "Failed to view current positions" << std::endl;
+      return 1;
+    } else {
+      std::cout << "Got the positions successfully" << std::endl;
     }
   }
 

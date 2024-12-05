@@ -327,3 +327,75 @@ int Order::getOrderBook(const GetOrderBook &request) {
 
   return 0;
 }
+
+int Order::viewCurrentOrderPositions(const ViewCurrentPositions &request) {
+
+  CURL *curl;
+  CURLcode res;
+
+  curl = curl_easy_init();
+
+  std::string url = "https://test.deribit.com/api/v2/private/get_positions";
+  url += "?currency=" + std::string(request.Currency);
+  url += "&kind=" + std::string(request.Kind);
+
+  std::string responseData = "";
+  if (curl) {
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
+
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(
+        headers, ("Authorization: Bearer " + request.Bearer).c_str());
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+    res = curl_easy_perform(curl);
+
+    if (res != CURLE_OK) {
+      std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res)
+                << std::endl;
+
+      throw std::runtime_error("CURL request failed");
+    }
+
+  } else {
+    throw std::runtime_error("Failed to initilize curl");
+  }
+
+  try {
+
+    auto jsonResponse = json::parse(responseData);
+
+    if (jsonResponse.contains("error") && !jsonResponse["error"].is_null()) {
+
+      auto error = jsonResponse["error"];
+
+      if (error.contains("data") && !error["data"].is_null()) {
+
+        auto data = error["data"];
+        auto reason = "";
+        auto param = "";
+
+        if (data.contains("reason") && !data["reason"].is_null()) {
+          std::cout << data["reason"] << std::endl;
+        }
+
+        if (data.contains("param") && !data["param"].is_null()) {
+          std::cout << data["param"] << std::endl;
+        }
+      } else {
+        throw std::runtime_error("Issue while parsing data");
+      }
+    }
+  } catch (json::exception &e) {
+
+    std::cerr << "JSON parsing error: " << e.what() << std::endl;
+    throw std::runtime_error("Failed to parse JSON response");
+  }
+
+  return 0;
+}
