@@ -58,7 +58,7 @@ int Order::place_order(const OrderRequest &request) {
 
 int Order::cancel_order(const CancelRequest &request) {
   std::string url = "https://test.deribit.com/api/v2/private/cancel?";
-  url += "order_id=" + request.Order_Id;
+  url += "order_id=" + std::string(request.Order_Id);
 
   // Check if it is cancellable or not
   int validCheck = isCancelable(request);
@@ -106,7 +106,7 @@ int Order::isCancelable(const CancelRequest &request) {
   curl = curl_easy_init();
 
   std::string url = "https://test.deribit.com/api/v2/private/get_order_state?";
-  url += "order_id=" + request.Order_Id;
+  url += "order_id=" + std::string(request.Order_Id);
 
   std::string responseData = "";
 
@@ -189,7 +189,7 @@ int Order::modify_order(const ModifyRequest &request) {
 
   std::string url = "https://test.deribit.com/api/v2/private/edit?";
   url += "amount=" + std::to_string(request.Amount);
-  url += "&order_id=" + request.Order_Id;
+  url += "&order_id=" + std::string(request.Order_Id);
 
   if (curl) {
 
@@ -228,7 +228,7 @@ int Order::isModifyAble(const ModifyRequest &request) {
   curl = curl_easy_init();
 
   std::string url = "https://test.deribit.com/api/v2/private/get_order_state?";
-  url += "order_id=" + request.Order_Id;
+  url += "order_id=" + std::string(request.Order_Id);
 
   std::string responseData = "";
 
@@ -291,6 +291,38 @@ int Order::isModifyAble(const ModifyRequest &request) {
 
     throw std::runtime_error("The order is not open for modifying");
     return 1;
+  }
+
+  return 0;
+}
+
+int Order::getOrderBook(const GetOrderBook &request) {
+
+  CURL *curl;
+  CURLcode res;
+
+  curl = curl_easy_init();
+
+  std::string url = "https://test.deribit.com/api/v2/public/get_order_book";
+  url += "?depth=" + std::to_string(request.Depth);
+  url += "&instrument_name=" + std::string(request.InstrumentName);
+
+  if (curl) {
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+
+    res = curl_easy_perform(curl);
+
+    if (res != CURLE_OK) {
+      std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res)
+                << std::endl;
+
+      throw std::runtime_error("CURL request failed");
+    }
+
+  } else {
+    throw std::runtime_error("Failed to initialize curl");
   }
 
   return 0;

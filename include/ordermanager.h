@@ -20,6 +20,11 @@ struct ModifyRequest {
   std::string Bearer;
 };
 
+struct GetOrderBook {
+  std::string InstrumentName;
+  int Depth;
+};
+
 class Order {
 public:
   int place_order(const OrderRequest &request);
@@ -27,6 +32,7 @@ public:
   int isCancelable(const CancelRequest &request);
   int modify_order(const ModifyRequest &request);
   int isModifyAble(const ModifyRequest &request);
+  int getOrderBook(const GetOrderBook &request);
 };
 
 #endif // !ORDERMANAGER

@@ -2,6 +2,7 @@
 #include "./include/ordermanager.h"
 #include "./include/token.h"
 #include <cstdlib>
+#include <iostream>
 #include <ostream>
 #include <string>
 
@@ -74,6 +75,20 @@ int main(int argc, char **argv) {
       ->add_option("--order_id", modify_orderId,
                    "Order ID that you want to change")
       ->required();
+
+  // Get the order book
+  std::string orderBook_instrument_name = "";
+  int orderBook_depth = 0;
+  auto orderBook_cmd =
+      app.add_subcommand("orderBook", "Gets the present orderbook");
+
+  orderBook_cmd
+      ->add_option("--instrument_name", orderBook_instrument_name,
+                   "Takes in the instrument name for the order book")
+      ->required();
+  orderBook_cmd->add_option("--depth", orderBook_depth,
+                            "Takes in the depth for the number of entries to "
+                            "return for bids and asks.");
 
   CLI11_PARSE(app, argc, argv);
 
@@ -150,7 +165,35 @@ int main(int argc, char **argv) {
     } else {
       std::cout << "Order modify successfully!" << std::endl;
     }
+  } else if (orderBook_cmd->parsed()) {
+
+    if (orderBook_depth <= 0) {
+      std::cerr << "The depth of the order book is less than or equal to 0"
+                << std::endl;
+      throw std::runtime_error("Check the depth value");
+      return 1;
+    } else if (orderBook_instrument_name.empty()) {
+      std::cerr << "The instrument_name is empty" << std::endl;
+
+      throw std::runtime_error("Check the instrument_name");
+      return 1;
+    }
+
+    GetOrderBook request;
+    request.Depth = orderBook_depth;
+    request.InstrumentName = orderBook_instrument_name;
+
+    Order orderManager;
+    int ok = orderManager.getOrderBook(request);
+
+    if (ok != 0) {
+      std::cerr << "Failed to get order book" << std::endl;
+      return 1;
+    } else {
+      std::cout << "Got the order book successfully" << std::endl;
+    }
   }
+
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = end - start;
 
